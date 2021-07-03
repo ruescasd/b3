@@ -2,23 +2,23 @@
 #[macro_use]
 extern crate quick_error;
 
-use std::sync::mpsc::{Sender, Receiver};
 use std::sync::mpsc;
+use std::sync::mpsc::{Receiver, Sender};
 use warp::Filter;
 
-use std::thread;
-use std::io::Write;
-use std::time::Duration;
-use std::sync::{Arc, Mutex};
-use std::time::SystemTime;
-use sha2::{Digest, Sha512};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha512};
+use std::io::Write;
+use std::sync::{Arc, Mutex};
+use std::thread;
+use std::time::Duration;
+use std::time::SystemTime;
 
 use tokio::runtime::Builder;
 
 use r2d2;
 use r2d2::PooledConnection;
-use r2d2_postgres::{postgres::NoTls, PostgresConnectionManager, postgres::Error};
+use r2d2_postgres::{postgres::Error, postgres::NoTls, PostgresConnectionManager};
 
 quick_error! {
     #[derive(Debug)]
@@ -36,7 +36,7 @@ quick_error! {
 #[derive(Deserialize, Serialize)]
 struct Entry {
     content: String,
-    h: String
+    h: String,
 }
 #[derive(Deserialize, Serialize)]
 struct Reply {
@@ -52,12 +52,20 @@ struct Entries {
     head: String,
     entries: Vec<Entry>,
     senders: Vec<Sender<String>>,
-    time: SystemTime
+    time: SystemTime,
 }
 impl Entries {
-    fn new(head: String, entries: Vec<Entry>, senders: Vec<Sender<String>>, time: SystemTime) -> Entries {
+    fn new(
+        head: String,
+        entries: Vec<Entry>,
+        senders: Vec<Sender<String>>,
+        time: SystemTime,
+    ) -> Entries {
         Entries {
-            head, entries, senders, time
+            head,
+            entries,
+            senders,
+            time,
         }
     }
     fn with_head(head: String) -> Entries {
@@ -71,23 +79,24 @@ impl Default for Entries {
 }
 
 fn main() {
-
-    let manager = PostgresConnectionManager::new(
-        "host=localhost port=5433 user=b3".parse().unwrap(),
-        NoTls,
-    );
+    let manager =
+        PostgresConnectionManager::new("host=localhost port=5433 user=b3".parse().unwrap(), NoTls);
     let pool = r2d2::Pool::new(manager).unwrap();
-    
+
     let mut client = pool.get().unwrap();
     client.execute("drop table chain", &[]).unwrap();
-    client.batch_execute("
+    client
+        .batch_execute(
+            "
         CREATE TABLE chain (
             id          SERIAL PRIMARY KEY,
             content     TEXT NOT NULL,
             hash        TEXT NOT NULL,
             chain_hash  TEXT NOT NULL    
         )
-    ").unwrap();
+    ",
+        )
+        .unwrap();
 
     let runtime = Builder::new_multi_thread()
         .worker_threads(100)
@@ -114,13 +123,11 @@ fn main() {
             let result = rx.recv_timeout(Duration::from_millis(200));
             if let Ok(reply) = result {
                 warp::reply::json(&Reply::new(reply))
-            }
-            else {
+            } else {
                 warp::reply::json(&Reply::new(String::from("timeout")))
             }
-            
         });
-    
+
     println!("> chainer starting..");
     let mtx = mtx.clone();
     let mut hash_conn = pool.get().unwrap();
@@ -139,16 +146,13 @@ fn main() {
                         e.senders[i].send(head).unwrap();
                     }
                     *e = Entries::with_head(last);
-                }
-                else {
+                } else {
                     println!(">>> error {:?}", result);
                 }
                 // println!("done[{}ms]", now.elapsed().as_millis());
-
             }
             drop(e);
             // thread::sleep(Duration::from_millis(10));
-
         }
     });
 
@@ -158,12 +162,16 @@ fn main() {
     // hasher.join().unwrap();
 }
 
-fn write(client: &mut PooledConnection<PostgresConnectionManager<NoTls>>, entries: &Vec<Entry>, head: String) -> Result<Vec<String>, WriteError> {
+fn write(
+    client: &mut PooledConnection<PostgresConnectionManager<NoTls>>,
+    entries: &Vec<Entry>,
+    head: String,
+) -> Result<Vec<String>, WriteError> {
     let mut tx = client.transaction()?;
     let mut writer = tx.copy_in("COPY chain(content, hash, chain_hash) FROM stdin")?;
     let mut head = head;
     let mut ret = vec![];
-    
+
     for entry in entries {
         let (h1, h2) = hash(&entry.content, &head);
         let row = format!("{}\t{}\t{}\n", entry.content, h1, h2);
