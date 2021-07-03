@@ -111,8 +111,14 @@ fn main() {
             e.entries.push(entry);
             e.senders.push(tx);
             drop(e);
-            let result = rx.recv().unwrap();
-            warp::reply::json(&Reply::new(result))
+            let result = rx.recv_timeout(Duration::from_millis(200));
+            if let Ok(reply) = result {
+                warp::reply::json(&Reply::new(reply))
+            }
+            else {
+                warp::reply::json(&Reply::new(String::from("timeout")))
+            }
+            
         });
     
     println!("> chainer starting..");
@@ -125,7 +131,7 @@ fn main() {
             let count = e.entries.len();
             if count > 50 || (elapsed > 100 && count > 0) {
                 // print!("> chainer: write [count={}] [elapsed={}]..", count, elapsed);
-                let now = std::time::Instant::now();
+                // let now = std::time::Instant::now();
                 let result = write(&mut hash_conn, &e.entries, e.head.clone());
                 if let Ok(heads) = result {
                     let last = heads[heads.len() - 1].clone();
