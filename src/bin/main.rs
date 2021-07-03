@@ -1,3 +1,4 @@
+// curl --header "Content-Type: application/json"   --request POST   --data '{"content":"xyz","h":"3"}'   http://localhost:3030/bb
 #[macro_use]
 extern crate quick_error;
 
@@ -122,8 +123,8 @@ fn main() {
             let mut e = mtx.lock().unwrap();
             let elapsed = e.time.elapsed().unwrap().as_millis();
             let count = e.entries.len();
-            if count > 0 {
-                print!("> chainer: write [count={}] [elapsed={}]..", count, elapsed);
+            if count > 50 || (elapsed > 100 && count > 0) {
+                // print!("> chainer: write [count={}] [elapsed={}]..", count, elapsed);
                 let now = std::time::Instant::now();
                 let result = write(&mut hash_conn, &e.entries, e.head.clone());
                 if let Ok(heads) = result {
@@ -136,11 +137,11 @@ fn main() {
                 else {
                     println!(">>> error {:?}", result);
                 }
-                println!("done[{}ms]", now.elapsed().as_millis());
+                // println!("done[{}ms]", now.elapsed().as_millis());
 
             }
             drop(e);
-            thread::sleep(Duration::from_millis(100));
+            // thread::sleep(Duration::from_millis(10));
 
         }
     });
