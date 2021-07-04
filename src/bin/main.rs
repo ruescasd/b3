@@ -79,11 +79,13 @@ impl Default for Entries {
 }
 
 fn main() {
+    print!("> Clearing db..");
     let manager =
         PostgresConnectionManager::new("host=localhost port=5433 user=b3".parse().unwrap(), NoTls);
     let pool = r2d2::Pool::new(manager).unwrap();
 
     let mut client = pool.get().unwrap();
+
     client.execute("drop table chain", &[]).unwrap();
     client
         .batch_execute(
@@ -97,6 +99,7 @@ fn main() {
     ",
         )
         .unwrap();
+    println!("ok");
 
     let runtime = Builder::new_multi_thread()
         .worker_threads(100)
