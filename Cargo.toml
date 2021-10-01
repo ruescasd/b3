@@ -11,7 +11,11 @@ sha2 = "0.9.1"
 hex = "0.4.3"
 r2d2 = "0.8.9"
 r2d2_postgres = "0.18.0"
+bb8 = "0.7.0"
+bb8-postgres = "0.7.0"
+tokio-postgres = "0.7.2"
 quick-error = "2.0.0"
+futures = "0.3"
 tokio = { version = "1", features = ["full"] }
 warp = "0.3"
 serde = { version = "1.0", features = ["derive"] }

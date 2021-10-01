@@ -26,6 +26,7 @@ fn main() {
         previous_head = head.clone();
         assert_eq!(expected, head);
     }
+    drop(client);
     println!("ok {}", count);
 }
 

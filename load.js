@@ -6,11 +6,11 @@ export let options = {
   scenarios: {
     open_model: {
       executor: 'constant-arrival-rate',
-      rate: 2000,
+      rate: 5000,
       timeUnit: '1s',
       duration: '30s',
       preAllocatedVUs: 50,
-      maxVUs: 200
+      maxVUs: 250
     },
   },
 };
@@ -19,7 +19,7 @@ export default function () {
   var url = 'http://localhost:3030/bb';
   var payload = JSON.stringify({
     content: 'adfgdfgsdfgsdfgsdfgsdfgsdfgsdfgsdfgsdfgsdfgsdfgsfgsdfgsdfgdfgsdfgsdggsergerg',
-    h: 'bbb',
+    hash: 'bbb',
   });
 
   var params = {
