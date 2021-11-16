@@ -36,17 +36,7 @@ pub struct Message {
     post: Post,
     sender: Sender<String>,
 }
-/*impl Message {
-    fn new(
-        post: Post,
-        sender: Sender<String>,
-    ) -> Message {
-        Message {
-            post,
-            sender,
-        }
-    }
-}*/ 
+
 #[derive(Deserialize, Serialize)]
 pub struct PostReply {
     head: String,
@@ -64,29 +54,6 @@ async fn go(tx: Sender<Message>) {
         .and(warp::body::json())
         .and(warp::any().map(move || tx.clone()))
         .and_then(do_post);
-        /*.map(|post: Post, tx: Sender<Message>| {
-            async { 
-                let result = do_post(post, tx).await;
-                if let Ok(result) = result {
-                    warp::reply::json(&Reply::new(result))
-                } else {
-                    println!("Timeout!");
-                    warp::reply::json(&Reply::new(String::from("timeout")))
-                }
-            };
-        });*/
-    
-    // GET /hello/warp => 200 OK with body "Hello, warp!"
-    /* let hello = warp::path!("hello")
-        .and(warp::any().map(move || pool.clone()))
-        .map(|pool: bb8::Pool<PostgresConnectionManager<NoTls>>| {
-            Response::builder().body("Hohoho")
-        });
-
-
-    warp::serve(hello)
-        .run(([127, 0, 0, 1], 3030))
-        .await;*/
 
     warp::serve(post)
         .run(([127, 0, 0, 1], 3030))
@@ -104,17 +71,17 @@ async fn do_post(post: Post, tx: Sender<Message>) -> Result<impl warp::Reply, Re
         post: p,
         sender: tx_back
     };
-    tx.send(message).await.map_err(|e| warp::reject::custom(PostError::SendError))?;
+    tx.send(message).await.map_err(|_e| warp::reject::custom(PostError::SendError))?;
     
     let result = timeout(Duration::from_millis(200), rx_back.recv()).await
-        .map_err(|e| warp::reject::custom(PostError::ReceiveError))?;
+        .map_err(|_e| warp::reject::custom(PostError::ReceiveError))?;
     
     if let Some(head) = result {
         Ok(warp::reply::json(&PostReply::new(head)))
     } 
     else {
         println!("Timeout!");
-        Ok(warp::reply::json(&PostReply::new(String::from("timeout"))))
+        Ok(warp::reply::json(&PostReply::new("timeout".into())))
     }
 }
 
@@ -127,7 +94,7 @@ fn main() {
     .build()
     .unwrap();
 
-    let manager = PostgresConnectionManager::new("host=localhost port=5433 user=b3".parse().unwrap(), NoTls);
+    let manager = PostgresConnectionManager::new("host=localhost port=5433 user=b3 password=b3".parse().unwrap(), NoTls);
     let (tx, rx): (Sender<Message>, Receiver<Message>) = mpsc::channel(100);
 
     runtime.spawn(db_writer(manager.clone(), rx));
@@ -165,7 +132,7 @@ async fn db_writer(manager: PostgresConnectionManager<NoTls>, rx: Receiver<Messa
     let mut idle = false;
     loop {
         match timeout(Duration::from_millis(10), rx.recv()).await {   
-            Err(e) => {
+            Err(_e) => {
                 if idle == false && posts.len() == 0 {
                     println!("db_writer> Idle..");
                     idle = true;
@@ -180,13 +147,11 @@ async fn db_writer(manager: PostgresConnectionManager<NoTls>, rx: Receiver<Messa
             },
         }
         let elapsed = last_insert.elapsed().unwrap().as_millis();
-        if posts.len() > 50 || (elapsed > 100 && posts.len() > 0) {
-            //println!("Doing shit now");
+        if posts.len() > 100 || (elapsed > 150 && posts.len() > 0) {
             let result = insert_rows(&mut conn, &posts, head.clone()).await;
             if let Ok(hashes) = result {
                 let last = hashes[hashes.len() - 1].clone();
                 for (i, head) in hashes.into_iter().enumerate() {
-                    // FIXME this can break killing the thread
                     let result = senders[i].send(head).await;
                     match result {
                         Ok(_) => {

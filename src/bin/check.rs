@@ -6,7 +6,7 @@ use sha2::{Digest, Sha512};
 
 fn main() {
     let manager =
-        PostgresConnectionManager::new("host=localhost port=5433 user=b3".parse().unwrap(), NoTls);
+        PostgresConnectionManager::new("host=localhost port=5433 user=b3 password=b3".parse().unwrap(), NoTls);
     let pool = r2d2::Pool::new(manager).unwrap();
 
     let mut client = pool.get().unwrap();
